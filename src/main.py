@@ -1,3 +1,6 @@
+import shelve
+from pathlib import Path
+
 from discord import Intents
 from discord.ext.commands import Bot, Context
 from dotenv import dotenv_values
@@ -13,12 +16,23 @@ bot = Bot(
     intents=intents
 )
 
+# Pick a location for our data to be stored
+database_path = Path.home() / "firstdiscordbot"
+db = shelve.open(str(database_path))
+
 
 # Add some commands
 @bot.hybrid_command()
 async def helloworld(ctx: Context) -> None:
     """Says hi!"""
-    await ctx.send("Hi!")
+    await ctx.send(db.get("hello", "hi"))
+
+
+@bot.hybrid_command()
+async def sethello(ctx: Context, *, message: str) -> None:
+    """Sets the hello message"""
+    db["hello"] = message
+    await ctx.send(f"Hello message set to: {message}")
 
 
 # Run the bot
@@ -34,4 +48,5 @@ async def on_ready() -> None:
     await bot.tree.sync(guild=guild)
 
 
-bot.run(discord_token)
+with db:
+    bot.run(discord_token)
