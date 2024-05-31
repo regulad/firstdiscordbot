@@ -1,6 +1,7 @@
 import shelve
 from pathlib import Path
 
+from aiocoingecko import AsyncCoinGeckoAPISession
 from discord import Intents
 from discord.ext.commands import Bot, Context
 from dotenv import dotenv_values
@@ -20,6 +21,10 @@ bot = Bot(
 database_path = Path.home() / "firstdiscordbot"
 db = shelve.open(str(database_path))
 
+# CoinGecko
+coingecko_api_key = config["COINGECKO_KEY"]
+cg = AsyncCoinGeckoAPISession(demo_api_key=coingecko_api_key)
+
 
 # Add some commands
 @bot.hybrid_command()
@@ -35,6 +40,13 @@ async def sethello(ctx: Context, *, message: str) -> None:
     await ctx.send(f"Hello message set to: {message}")
 
 
+@bot.hybrid_command()
+async def get_coin_value(ctx: Context, coin: str) -> None:
+    """Get the value of a coin"""
+    coin_data = await cg.get_price(ids=coin, vs_currencies="usd")
+    await ctx.send(f"{coin} is worth {coin_data[coin]['usd']} USD")
+
+
 # Run the bot
 discord_token = config["DISCORD_TOKEN"]
 guild_id = int(config["GUILD_ID"])
@@ -46,6 +58,8 @@ async def on_ready() -> None:
     guild = bot.get_guild(guild_id)
     bot.tree.copy_global_to(guild=guild)
     await bot.tree.sync(guild=guild)
+    await cg.start()  # Start the CoinGecko API session
+    print(await cg.ping())
 
 
 with db:
