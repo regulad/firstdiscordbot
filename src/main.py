@@ -3,8 +3,10 @@ from pathlib import Path
 
 from aiocoingecko import AsyncCoinGeckoAPISession
 from discord import Intents
-from discord.ext.commands import Bot, Context
+from discord.ext.commands import Context
 from dotenv import dotenv_values
+
+from utils.bot import MyBot
 
 # Load the configuration from the .env file
 config = dotenv_values()
@@ -12,7 +14,7 @@ config = dotenv_values()
 # Create the Bot
 command_prefix = "?"
 intents = Intents.default()
-bot = Bot(
+bot = MyBot(
     command_prefix=command_prefix,
     intents=intents
 )
@@ -27,18 +29,6 @@ cg = AsyncCoinGeckoAPISession(demo_api_key=coingecko_api_key)
 
 
 # Add some commands
-@bot.hybrid_command()
-async def helloworld(ctx: Context) -> None:
-    """Says hi!"""
-    await ctx.send(db.get("hello", "hi"))
-
-
-@bot.hybrid_command()
-async def sethello(ctx: Context, *, message: str) -> None:
-    """Sets the hello message"""
-    db["hello"] = message
-    await ctx.send(f"Hello message set to: {message}")
-
 
 @bot.hybrid_command()
 async def get_coin_value(ctx: Context, coin: str) -> None:
@@ -52,15 +42,20 @@ discord_token = config["DISCORD_TOKEN"]
 guild_id = int(config["GUILD_ID"])
 
 
-@bot.event
-async def on_ready() -> None:
+async def setup_hook() -> None:
     """Tell Discord about our slash commands"""
-    guild = bot.get_guild(guild_id)
+    await bot.load_extension("extensions.hello")
+    # await bot.load_extension("extensions.coin_value")
+
+    guild = await bot.fetch_guild(guild_id)
     bot.tree.copy_global_to(guild=guild)
     await bot.tree.sync(guild=guild)
     await cg.start()  # Start the CoinGecko API session
-    print(await cg.ping())
 
+
+bot.setup_hook = setup_hook
+bot.db = db
+bot.cg = cg
 
 with db:
     bot.run(discord_token)
